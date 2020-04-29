@@ -1,15 +1,23 @@
 const express = require('express')
 const app = express()
-const bodyParser = require('body-parser')
 
 const cors = require('cors')
 
 const mongoose = require('mongoose')
-mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track' )
+mongoose.connect(process.env.MLAB_URI || 'mongodb://localhost/exercise-track', {
+  useUnifiedTopology: true,
+  useNewUrlParser: true,
+  useCreateIndex: true
+}, () => console.log("While the (mon)goose is on the loose"));
+
+const User = require('./model/User');
+const Exercise = require('./model/Exercise');
 
 app.use(cors())
 
-app.use(express.urlencoded({extended: false}))
+app.use(express.urlencoded({
+  extended: false
+}))
 app.use(express.json())
 
 
@@ -19,9 +27,76 @@ app.get('/', (req, res) => {
 });
 
 
+app.post('/api/exercise/new-user', (req, res) => {
+  const user = new User({
+    name: req.body.username
+  });
+  user.save()
+    .then(res.json({
+      user
+    }))
+    .catch(err, (err) => {
+      console.log(err);
+    });
+});
+
+app.get('/api/exercise/users', (req, res) => {
+  
+  User.find({}, (err, result) => {
+    if (err) {
+      console.log(err);
+    } else {
+      res.json(result);
+    }
+  });
+});
+
+app.post('/api/exercise/add', (req, res) => {
+  let userId = req.body.userId;
+  const exercise = new Exercise({
+    userId: userId,
+    description: req.body.description,
+    duration: req.body.duration,
+    date: req.body.date
+  });
+  exercise.save()
+    .then(
+      User.findOneAndUpdate(
+        {userId: userId}, {$push:{ exercises: exercise}}, { new:true }, (err, result) => {
+          if(err){
+            console.log(err);
+          }
+          return res.json(result);
+        }
+    ))
+    .catch(err, (err) => {
+      console.log(err);
+    });
+});
+
+app.get('/api/exercise/log', (req, res) => {
+  
+  Exercise.find({}, (err, result) => {
+    if (err) {
+      console.log(err);
+    } else {
+      res.json(result);
+    }
+  });
+});
+
+app.get('/api/exercise/log/:userId', (req, res) => {
+  let userId = req.params.userId;
+  User.findOne({ userId : userId }).populate('exercises')
+  .then((user) => res.json(user));
+});
+
 // Not found middleware
 app.use((req, res, next) => {
-  return next({status: 404, message: 'not found'})
+  return next({
+    status: 404,
+    message: 'not found'
+  })
 })
 
 // Error Handling middleware
