@@ -69,9 +69,9 @@ app.post('/api/exercise/add', (req, res) => {
           return res.json(result);
         }
     ))
-    .catch(err, (err) => {
-      console.log(err);
-    });
+    // .catch(err, (err) => {
+    //   console.log(err);
+    // });
 });
 
 app.get('/api/exercise/log', (req, res) => {
@@ -86,9 +86,28 @@ app.get('/api/exercise/log', (req, res) => {
 });
 
 app.get('/api/exercise/log/:userId', (req, res) => {
-  let userId = req.params.userId;
+  const userId = req.params.userId;
   User.findOne({ userId : userId }).populate('exercises')
-  .then((user) => res.json(user));
+  .then((user) => {
+    let {limit, from, to} = req.query;
+    if(from){
+      let fromDate = new Date(from);
+      let exeFrom = user.exercises.filter(exe => new Date(exe.date) >= fromDate);
+      return res.json(exeFrom);
+    }
+    else if(to){
+      let toDate = new Date(to);
+      let exeFrom = user.exercises.filter(exe => new Date(exe.date) <= toDate);
+      return res.json(exeFrom);
+    }
+    else if(limit){
+      let exeLimit = user.exercises.slice(0, +limit);
+      return res.json(exeLimit);
+    }
+    else {
+      return res.json(user);
+    }
+  })
 });
 
 // Not found middleware
